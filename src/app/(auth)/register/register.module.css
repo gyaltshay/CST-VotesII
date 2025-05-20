@@ -1,0 +1,216 @@
+.container {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #f5f7fa, #e4e8f0);
+  padding: 3rem 1rem;
+}
+
+.formContainer {
+  max-width: 42rem;
+  margin: 0 auto;
+  background-color: white;
+  border-radius: 0.5rem;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  padding: 2rem;
+  border-top: 4px solid #1d4e89;
+}
+
+.header {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.title {
+  font-size: 1.875rem;
+  font-weight: 700;
+  color: #1f2937;
+  margin-bottom: 0.5rem;
+}
+
+.subtitle {
+  color: #6b7280;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.formRow {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
+}
+
+@media (min-width: 768px) {
+  .formRow {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.formGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.label {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #374151;
+}
+
+.input,
+.select {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  transition: all 0.2s;
+}
+
+.input:focus,
+.select:focus {
+  outline: none;
+  border-color: #1d4e89;
+  box-shadow: 0 0 0 2px rgba(29, 78, 137, 0.2);
+}
+
+.passwordStrength {
+  margin-top: 0.25rem;
+  height: 4px;
+  background-color: #e5e7eb;
+  border-radius: 9999px;
+  overflow: hidden;
+}
+
+.passwordStrengthBar {
+  height: 100%;
+  transition: all 0.3s;
+}
+
+.weak {
+  width: 33.33%;
+  background-color: #ef4444;
+}
+
+.medium {
+  width: 66.66%;
+  background-color: #f59e0b;
+}
+
+.strong {
+  width: 100%;
+  background-color: #10b981;
+}
+
+.requirements {
+  margin-top: 0.5rem;
+  font-size: 0.875rem;
+}
+
+.requirement {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.25rem;
+}
+
+.requirementIcon {
+  font-size: 0.75rem;
+}
+
+.valid {
+  color: #059669;
+}
+
+.invalid {
+  color: #9ca3af;
+}
+
+.submitButton {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 0.625rem 1rem;
+  background-color: #1d4e89;
+  color: white;
+  border: none;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.submitButton:hover {
+  background-color: #173d6a;
+}
+
+.submitButton:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px white, 0 0 0 4px #1d4e89;
+}
+
+.error {
+  margin-top: 0.5rem;
+  color: #dc2626;
+  font-size: 0.875rem;
+}
+
+.success {
+  margin-top: 0.5rem;
+  color: #059669;
+  font-size: 0.875rem;
+}
+
+.divider {
+  margin: 1.5rem 0;
+  border: none;
+  border-top: 1px solid #e5e7eb;
+}
+
+.loginLink {
+  text-align: center;
+  margin-top: 1rem;
+}
+
+.loginText {
+  color: #6b7280;
+  font-size: 0.875rem;
+}
+
+.loginButton {
+  margin-left: 0.25rem;
+  color: #1d4e89;
+  font-weight: 500;
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+.loginButton:hover {
+  color: #173d6a;
+}
+
+.loading {
+  opacity: 0.75;
+  cursor: not-allowed;
+}
+
+.spinner {
+  animation: spin 1s linear infinite;
+  height: 1.25rem;
+  width: 1.25rem;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}

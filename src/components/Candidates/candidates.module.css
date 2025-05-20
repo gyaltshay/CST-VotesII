@@ -1,0 +1,318 @@
+.candidatesContainer {
+  padding: 2rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.positionSection {
+  margin-bottom: 3rem;
+  background: white;
+  border-radius: 8px;
+  padding: 2rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.positionTitle {
+  color: #2c3e50;
+  font-size: 1.8rem;
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 2px solid #e0e0e0;
+}
+
+.positionInfo {
+  display: flex;
+  gap: 2rem;
+  margin-bottom: 1.5rem;
+  color: #666;
+  font-size: 0.9rem;
+}
+
+.candidatesGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 2rem;
+}
+
+.candidateCard {
+  background: white;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition: transform 0.2s ease;
+}
+
+.candidateCard:hover {
+  transform: translateY(-4px);
+}
+
+.imageContainer {
+  width: 100%;
+  height: 200px;
+  overflow: hidden;
+}
+
+.candidateImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.candidateInfo {
+  padding: 1.5rem;
+}
+
+.candidateInfo h3 {
+  margin: 0 0 0.5rem 0;
+  color: #2c3e50;
+  font-size: 1.4rem;
+}
+
+.studentId {
+  color: #666;
+  font-size: 0.9rem;
+  margin: 0.25rem 0;
+}
+
+.department {
+  color: #2980b9;
+  font-size: 0.9rem;
+  margin: 0.25rem 0 1rem 0;
+}
+
+.manifestoContainer {
+  margin: 1rem 0;
+  padding: 1rem;
+  background: #f8f9fa;
+  border-radius: 4px;
+}
+
+.manifestoContainer h4 {
+  margin: 0 0 0.5rem 0;
+  color: #2c3e50;
+  font-size: 1rem;
+}
+
+.manifestoContainer p {
+  color: #666;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.voteButton {
+  width: 100%;
+  padding: 0.8rem;
+  margin-top: 1rem;
+  border: none;
+  border-radius: 4px;
+  background-color: #2980b9;
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.voteButton:hover:not(:disabled) {
+  background-color: #2471a3;
+}
+
+.voteButton:disabled {
+  background-color: #bdc3c7;
+  cursor: not-allowed;
+}
+
+.voted {
+  background-color: #27ae60;
+}
+
+.voted:hover {
+  background-color: #27ae60;
+}
+
+@media (max-width: 768px) {
+  .candidatesContainer {
+    padding: 1rem;
+  }
+
+  .candidatesGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .positionInfo {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+}
+
+.candidateCard {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  transition: transform 0.2s;
+  position: relative;
+}
+
+.candidateCard:hover {
+  transform: translateY(-4px);
+}
+
+.imageContainer {
+  position: relative;
+  width: 100%;
+  padding-top: 100%;
+}
+
+.candidateImage {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.genderBadge {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  padding: 4px 8px;
+  border-radius: 20px;
+  font-size: 1.2rem;
+}
+
+.male {
+  background-color: var(--primary-color);
+  color: white;
+}
+
+.female {
+  background-color: #e83e8c;
+  color: white;
+}
+
+.cardContent {
+  padding: 1.5rem;
+}
+
+.candidateName {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #333;
+}
+
+.candidateInfo {
+  color: #666;
+  margin: 0.5rem 0;
+  font-size: 0.9rem;
+}
+
+.manifesto {
+  color: #444;
+  margin: 1rem 0;
+  line-height: 1.5;
+}
+
+.cardActions {
+  display: flex;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.detailsButton,
+.voteButton {
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  border: none;
+  cursor: pointer;
+  font-weight: 500;
+  flex: 1;
+}
+
+.detailsButton {
+  background-color: #f0f0f0;
+  color: #333;
+}
+
+.voteButton {
+  background-color: var(--primary-color);
+  color: white;
+}
+
+.voteButton:hover {
+  background-color: #163c6d;
+}
+
+.voteButton:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+
+.voted {
+  background-color: var(--secondary-color);
+  color: #333;
+}
+
+/* Modal styles */
+.modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.modalContent {
+  background: white;
+  padding: 2rem;
+  border-radius: 8px;
+  max-width: 600px;
+  width: 90%;
+  max-height: 90vh;
+  overflow-y: auto;
+  position: relative;
+}
+
+.closeButton {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: #666;
+}
+
+.modalImage {
+  width: 100%;
+  height: auto;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+}
+
+.modalTitle {
+  font-size: 1.5rem;
+  margin: 1rem 0;
+}
+
+.modalInfo {
+  color: #666;
+  margin-bottom: 1rem;
+}
+
+.manifestoSection {
+  margin: 1.5rem 0;
+}
+
+.manifestoSection h3 {
+  color: #333;
+  margin-bottom: 0.5rem;
+}

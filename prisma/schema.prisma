@@ -1,0 +1,186 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model User {
+  id              String         @id @default(cuid())
+  studentId       String         @unique
+  email           String         @unique
+  name            String
+  password        String
+  department      String
+  yearOfStudy     Int
+  gender          Gender
+  role            Role          @default(STUDENT)
+  emailVerified   DateTime?
+  image           String?
+  accounts        Account[]
+  sessions        Session[]
+  votes           Vote[]
+  twoFactorCodes  TwoFactorCode[]
+  reminderLogs    ReminderLog[]
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+}
+
+model Candidate {
+  id          String    @id @default(cuid())
+  name        String
+  studentId   String    @unique
+  positionId  String    // This will store the position key (e.g., 'president', 'vice_president')
+  department  String
+  gender      Gender
+  manifesto   String    @db.Text
+  imageUrl    String?
+  voteCount   Int       @default(0)
+  votes       Vote[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model Vote {
+  id          String    @id @default(cuid())
+  user        User      @relation(fields: [userId], references: [id])
+  userId      String
+  candidate   Candidate @relation(fields: [candidateId], references: [id])
+  candidateId String
+  createdAt   DateTime  @default(now())
+
+  @@unique([userId, candidateId])
+  @@index([userId])
+  @@index([candidateId])
+}
+
+model TwoFactorCode {
+  id        String    @id @default(cuid())
+  user      User      @relation(fields: [userId], references: [id])
+  userId    String
+  code      String
+  expiresAt DateTime
+  used      Boolean   @default(false)
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+  @@index([code])
+}
+
+model ElectionSettings {
+  id              String    @id @default(cuid())
+  votingStartTime DateTime
+  votingEndTime   DateTime
+  isActive        Boolean   @default(true)
+  autoResetEnabled Boolean  @default(false)
+  autoResetTime   String?
+  autoResetDay    Int?
+  autoResetMonth  Int?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}
+
+model ElectionArchive {
+  id        String    @id @default(cuid())
+  electionId String
+  startTime  DateTime
+  endTime    DateTime
+  results    Json
+  metadata   Json?
+  createdAt  DateTime  @default(now())
+}
+
+model AuditLog {
+  id         String    @id @default(cuid())
+  action     String
+  entityType String
+  entityId   String?
+  userId     String?
+  metadata   Json?
+  timestamp  DateTime  @default(now())
+
+  @@index([action])
+  @@index([entityType])
+  @@index([userId])
+  @@index([timestamp])
+}
+
+model ReminderLog {
+  id        String    @id @default(cuid())
+  user      User      @relation(fields: [userId], references: [id])
+  userId    String
+  type      String
+  sentAt    DateTime  @default(now())
+
+  @@index([userId])
+  @@index([type])
+  @@index([sentAt])
+}
+
+model SupportMessage {
+  id        String    @id @default(cuid())
+  name      String
+  email     String
+  subject   String
+  message   String    @db.Text
+  status    String    @default("PENDING") // PENDING, RESOLVED, IN_PROGRESS
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([email])
+  @@index([status])
+  @@index([createdAt])
+}
+
+enum Role {
+  STUDENT
+  ADMIN
+}
+
+enum Gender {
+  Male
+  Female
+}
