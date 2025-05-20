@@ -1,5 +1,5 @@
 import { Inter } from 'next/font/google';
-import Providers from '@/components/Providers';
+import Providers from '@/components/providers';
 import MainLayout from '@/components/Layout/MainLayout';
 import './globals.css';
 
