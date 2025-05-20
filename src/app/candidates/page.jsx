@@ -2,6 +2,10 @@
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import styles from './candidates.module.css';
+import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 
 export default function CandidatesPage() {
   const { data: session } = useSession();
