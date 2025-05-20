@@ -1,10 +1,13 @@
 import { getServerSession } from "next-auth/next";
-import { authOptions } from "../../auth/[...nextauth]/route";
+import { authConfig } from '@/config/auth';
 import prisma from "@/lib/prisma";
 import { NextResponse } from "next/server";
 
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
 async function getSession() {
-  return await getServerSession(authOptions);
+  return await getServerSession(authConfig);
 }
 
 export async function GET() {
@@ -32,6 +35,7 @@ export async function GET() {
       autoResetMonth: settings.autoResetMonth || "",
     });
   } catch (error) {
+    console.error('Failed to fetch settings:', { error: error.message, stack: error.stack });
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
@@ -104,6 +108,7 @@ export async function POST(request) {
 
     return NextResponse.json(result);
   } catch (error) {
+    console.error('Failed to update settings:', { error: error.message, stack: error.stack });
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
