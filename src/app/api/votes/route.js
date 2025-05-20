@@ -1,8 +1,11 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
-import prisma from '@/config/db';
-import { authOptions } from '../auth/[...nextauth]/route';
+import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import prisma from '@/lib/prisma';
 import { sendVoteConfirmationEmail } from '@/lib/email';
+
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 
 export async function POST(request) {
   try {
@@ -10,7 +13,7 @@ export async function POST(request) {
     
     if (!session?.user) {
       return NextResponse.json(
-        { error: 'Please login to vote' },
+        { error: 'Unauthorized' },
         { status: 401 }
       );
     }
@@ -24,116 +27,108 @@ export async function POST(request) {
       );
     }
 
-    // Use a transaction to ensure data consistency
-    const result = await prisma.$transaction(async (prisma) => {
-      // Get the current user
-      const user = await prisma.user.findUnique({
-        where: { id: session.user.id },
-        include: {
-          votes: {
-            include: {
-              candidate: true
-            }
-          }
-        }
-      });
-
-      if (!user) {
-        throw new Error('User not found');
-      }
-
-      // Get the candidate
-      const candidate = await prisma.candidate.findUnique({
-        where: { id: candidateId }
-      });
-
-      if (!candidate) {
-        throw new Error('Candidate not found');
-      }
-
-      // Check if election is active
-      const activeElection = await prisma.electionSettings.findFirst({
-        where: { isActive: true }
-      });
-
-      if (!activeElection) {
-        throw new Error('No active election');
-      }
-
-      const now = new Date();
-      if (now < activeElection.votingStartTime || now > activeElection.votingEndTime) {
-        throw new Error('Voting is not currently active');
-      }
-
-      // Check if user has already voted for this position
-      const existingVote = user.votes.find(
-        vote => vote.candidate.positionId === candidate.positionId
+    // Check if voting is active
+    const votingStatus = await prisma.electionStatus.findFirst();
+    if (!votingStatus?.isActive) {
+      return NextResponse.json(
+        { error: 'Voting is not currently active' },
+        { status: 400 }
       );
+    }
 
-      if (existingVote) {
-        throw new Error('You have already voted for this position');
-      }
+    const now = new Date();
+    const startTime = new Date(votingStatus.startTime);
+    const endTime = new Date(votingStatus.endTime);
 
-      // Create the vote
-      const vote = await prisma.vote.create({
-        data: {
-          userId: user.id,
-          candidateId: candidate.id
-        },
-        include: {
-          candidate: true
-        }
-      });
+    if (now < startTime) {
+      return NextResponse.json(
+        { error: `Voting will start at ${startTime.toLocaleString()}` },
+        { status: 400 }
+      );
+    }
 
-      // Update candidate vote count
-      await prisma.candidate.update({
-        where: { id: candidate.id },
-        data: {
-          voteCount: {
-            increment: 1
-          }
-        }
-      });
+    if (now > endTime) {
+      return NextResponse.json(
+        { error: 'Voting has ended' },
+        { status: 400 }
+      );
+    }
 
-      // Send confirmation email
-      try {
-        await sendVoteConfirmationEmail(
-          user.email,
-          candidate.name,
-          candidate.positionId // Using positionId as the position name
-        );
-      } catch (emailError) {
-        console.error('Failed to send confirmation email:', emailError);
-        // Don't throw error here as the vote was already recorded
-      }
-
-      // Log the vote
-      await prisma.auditLog.create({
-        data: {
-          action: 'VOTE_CAST',
-          entityType: 'VOTE',
-          entityId: vote.id,
-          userId: user.id,
-          metadata: {
-            candidateId: candidate.id,
-            positionId: candidate.positionId,
-            department: user.department
-          }
-        }
-      });
-
-      return vote;
+    // Check if candidate exists
+    const candidate = await prisma.candidate.findUnique({
+      where: { id: candidateId }
     });
 
-    return NextResponse.json({
-      message: 'Vote recorded successfully',
-      vote: result
+    if (!candidate) {
+      return NextResponse.json(
+        { error: 'Candidate not found' },
+        { status: 404 }
+      );
+    }
+
+    // Check if user has already voted for this position
+    const existingVote = await prisma.vote.findFirst({
+      where: {
+        userId: session.user.id,
+        candidate: {
+          positionId: candidate.positionId
+        }
+      }
     });
+
+    if (existingVote) {
+      return NextResponse.json(
+        { error: 'You have already voted for this position' },
+        { status: 400 }
+      );
+    }
+
+    // Create vote
+    const vote = await prisma.vote.create({
+      data: {
+        userId: session.user.id,
+        candidateId
+      }
+    });
+
+    // Update candidate vote count
+    await prisma.candidate.update({
+      where: { id: candidateId },
+      data: {
+        voteCount: {
+          increment: 1
+        }
+      }
+    });
+
+    // Log the action
+    await prisma.auditLog.create({
+      data: {
+        action: 'VOTE_CREATE',
+        entityType: 'VOTE',
+        entityId: vote.id,
+        userId: session.user.id
+      }
+    });
+
+    // Send confirmation email
+    try {
+      await sendVoteConfirmationEmail(
+        session.user.email,
+        candidate.name,
+        candidate.positionId // Using positionId as the position name
+      );
+    } catch (emailError) {
+      console.error('Failed to send confirmation email:', emailError);
+      // Don't throw error here as the vote was already recorded
+    }
+
+    return NextResponse.json({ vote });
   } catch (error) {
-    console.error('Failed to record vote:', error);
+    console.error('Error creating vote:', error);
     return NextResponse.json(
-      { error: error.message || 'Failed to record vote. Please try again later.' },
-      { status: 400 }
+      { error: 'Failed to create vote' },
+      { status: 500 }
     );
   }
 }

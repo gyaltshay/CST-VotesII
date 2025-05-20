@@ -6,6 +6,9 @@ import prisma from '@/lib/prisma';
 
 const prismaClient = new PrismaClient();
 
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
 const DEFAULT_POSITIONS = {
   chief_councillor: { 
     id: 'chief_councillor',
