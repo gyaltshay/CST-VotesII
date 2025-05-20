@@ -4,12 +4,15 @@ import { authConfig } from '@/config/auth';
 import prisma from '@/lib/prisma';
 import { logAction } from '@/lib/audit';
 
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
 // PATCH endpoint to update support message status
 export async function PATCH(request, { params }) {
     try {
         const session = await getServerSession(authConfig);
         
-        if (!session?.user?.isAdmin) {
+        if (!session || session.user.role !== 'ADMIN') {
             return NextResponse.json(
                 { message: 'Unauthorized access' },
                 { status: 401 }
@@ -33,7 +36,7 @@ export async function PATCH(request, { params }) {
 
         return NextResponse.json({ message });
     } catch (error) {
-        console.error('Error updating support message:', error);
+        console.error('Error updating support message:', { error: error.message, stack: error.stack });
         return NextResponse.json(
             { message: 'Failed to update support message' },
             { status: 500 }
