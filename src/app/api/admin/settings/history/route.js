@@ -1,11 +1,16 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { authConfig } from '@/config/auth';
 import prisma from '@/lib/prisma';
+import { logAction } from '@/lib/audit';
+
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 
 export async function GET() {
+  const startTime = Date.now();
   try {
-    const session = await getServerSession(authOptions);
+    const session = await getServerSession(authConfig);
     
     if (!session || session.user.role !== 'ADMIN') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -26,9 +31,25 @@ export async function GET() {
       }
     });
 
+    // Log the action
+    await logAction({
+      action: 'VIEW_SETTINGS_HISTORY',
+      entityType: 'SETTINGS',
+      userId: session.user.id,
+      metadata: {
+        count: settings.length,
+        duration: Date.now() - startTime
+      }
+    });
+
     return NextResponse.json(settings);
   } catch (error) {
-    console.error('Failed to fetch settings history:', error);
+    console.error('Failed to fetch settings history:', {
+      error: error.message,
+      stack: error.stack,
+      duration: Date.now() - startTime
+    });
+    
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }
