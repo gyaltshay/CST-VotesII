@@ -1,31 +1,38 @@
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
 export async function GET() {
   try {
-    const election = await prisma.electionSettings.findFirst({
-      where: {
-        isActive: true
-      }
-    });
-
-    if (!election) {
+    const status = await prisma.electionStatus.findFirst();
+    
+    if (!status) {
       return NextResponse.json({
         isActive: false,
-        message: 'No active election found'
+        startTime: null,
+        endTime: null
       });
     }
 
-    const now = new Date();
-    const startTime = new Date(election.votingStartTime);
-    const endTime = new Date(election.votingEndTime);
-    const isActive = election.isActive && now >= startTime && now <= endTime;
+    // Get voter statistics
+    const [totalVoters, votes] = await Promise.all([
+      prisma.user.count({ where: { role: 'STUDENT' } }),
+      prisma.vote.findMany({
+        select: {
+          userId: true
+        }
+      })
+    ]);
+
+    // Calculate unique voters
+    const uniqueVoters = new Set(votes.map(vote => vote.userId)).size;
 
     return NextResponse.json({
-      isActive,
-      startTime: election.votingStartTime,
-      endTime: election.votingEndTime,
-      message: isActive ? 'Voting is active' : 'Voting is not active'
+      ...status,
+      totalVoters,
+      votedCount: uniqueVoters
     });
   } catch (error) {
     console.error('Error fetching election status:', error);
