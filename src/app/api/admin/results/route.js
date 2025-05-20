@@ -2,12 +2,19 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import prisma from '@/lib/prisma';
+import { headers } from 'next/headers';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 // Cache duration in seconds
 const CACHE_DURATION = 60; // 1 minute
+
+// Rate limiting configuration
+const RATE_LIMIT = {
+  windowMs: 60 * 1000, // 1 minute
+  maxRequests: 100 // 100 requests per minute
+};
 
 const DEFAULT_POSITIONS = {
   chief_councillor: { 
@@ -54,8 +61,48 @@ const DEFAULT_POSITIONS = {
   }
 };
 
+// Simple in-memory rate limiting
+const requestCounts = new Map();
+
+function isRateLimited(ip) {
+  const now = Date.now();
+  const windowStart = now - RATE_LIMIT.windowMs;
+  
+  // Clean up old entries
+  for (const [key, timestamp] of requestCounts.entries()) {
+    if (timestamp < windowStart) {
+      requestCounts.delete(key);
+    }
+  }
+  
+  // Count requests in current window
+  const count = Array.from(requestCounts.entries())
+    .filter(([key, timestamp]) => key.startsWith(ip) && timestamp > windowStart)
+    .length;
+  
+  if (count >= RATE_LIMIT.maxRequests) {
+    return true;
+  }
+  
+  // Add new request
+  requestCounts.set(`${ip}-${now}`, now);
+  return false;
+}
+
 export async function GET(request) {
+  const startTime = Date.now();
+  const headersList = headers();
+  const ip = headersList.get('x-forwarded-for') || 'unknown';
+  
   try {
+    // Rate limiting check
+    if (isRateLimited(ip)) {
+      return NextResponse.json(
+        { error: 'Too many requests. Please try again later.' },
+        { status: 429 }
+      );
+    }
+
     // Validate request
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page') || '1');
@@ -132,6 +179,32 @@ export async function GET(request) {
       );
     }
 
+    // Get department-wise voter statistics
+    const departmentVoterStats = await prisma.user.groupBy({
+      by: ['department'],
+      where: { role: 'STUDENT' },
+      _count: true
+    });
+
+    // Get gender-wise voter statistics
+    const genderVoterStats = await prisma.user.groupBy({
+      by: ['gender'],
+      where: { role: 'STUDENT' },
+      _count: true
+    });
+
+    // Get department-wise vote statistics
+    const departmentVoteStats = await prisma.vote.groupBy({
+      by: ['candidate.department'],
+      _count: true
+    });
+
+    // Get gender-wise vote statistics
+    const genderVoteStats = await prisma.vote.groupBy({
+      by: ['candidate.gender'],
+      _count: true
+    });
+
     // Group candidates by position
     const resultsByPosition = candidates.reduce((acc, candidate) => {
       const position = DEFAULT_POSITIONS[candidate.positionId];
@@ -174,20 +247,6 @@ export async function GET(request) {
       };
     });
 
-    // Get department-wise statistics
-    const departmentStats = await prisma.user.groupBy({
-      by: ['department'],
-      where: { role: 'STUDENT' },
-      _count: true
-    });
-
-    // Get gender-wise statistics
-    const genderStats = await prisma.user.groupBy({
-      by: ['gender'],
-      where: { role: 'STUDENT' },
-      _count: true
-    });
-
     const response = NextResponse.json({
       results: resultsByPosition,
       winners,
@@ -195,8 +254,14 @@ export async function GET(request) {
         totalVoters,
         totalVotes,
         voterTurnout: totalVoters > 0 ? (totalVotes / totalVoters) * 100 : 0,
-        departmentStats,
-        genderStats
+        departmentStats: {
+          voters: departmentVoterStats,
+          votes: departmentVoteStats
+        },
+        genderStats: {
+          voters: genderVoterStats,
+          votes: genderVoteStats
+        }
       },
       electionStatus: status,
       pagination: {
@@ -210,9 +275,33 @@ export async function GET(request) {
     // Add cache headers
     response.headers.set('Cache-Control', `public, s-maxage=${CACHE_DURATION}, stale-while-revalidate`);
     
+    // Add compression
+    response.headers.set('Content-Encoding', 'gzip');
+    
+    // Log request details
+    console.log({
+      timestamp: new Date().toISOString(),
+      ip,
+      method: 'GET',
+      path: request.url,
+      duration: Date.now() - startTime,
+      status: 200
+    });
+
     return response;
   } catch (error) {
     console.error('Error fetching election results:', error);
+    
+    // Log error details
+    console.error({
+      timestamp: new Date().toISOString(),
+      ip,
+      method: 'GET',
+      path: request.url,
+      duration: Date.now() - startTime,
+      error: error.message,
+      stack: error.stack
+    });
     
     // Provide more detailed error messages based on the error type
     if (error.code === 'P2002') {
