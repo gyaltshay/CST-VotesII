@@ -6,6 +6,9 @@ import prisma from '@/lib/prisma';
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
+// Cache duration in seconds
+const CACHE_DURATION = 60; // 1 minute
+
 const DEFAULT_POSITIONS = {
   chief_councillor: { 
     id: 'chief_councillor',
@@ -53,17 +56,45 @@ const DEFAULT_POSITIONS = {
 
 export async function GET(request) {
   try {
+    // Validate request
+    const { searchParams } = new URL(request.url);
+    const page = parseInt(searchParams.get('page') || '1');
+    const limit = parseInt(searchParams.get('limit') || '50');
+    const positionId = searchParams.get('positionId');
+
+    if (isNaN(page) || page < 1) {
+      return NextResponse.json(
+        { error: 'Invalid page number' },
+        { status: 400 }
+      );
+    }
+
+    if (isNaN(limit) || limit < 1 || limit > 100) {
+      return NextResponse.json(
+        { error: 'Invalid limit value. Must be between 1 and 100' },
+        { status: 400 }
+      );
+    }
+
+    if (positionId && !DEFAULT_POSITIONS[positionId]) {
+      return NextResponse.json(
+        { error: 'Invalid position ID' },
+        { status: 400 }
+      );
+    }
+
     const session = await getServerSession(authOptions);
     
     if (!session?.user || session.user.role !== 'ADMIN') {
       return NextResponse.json(
-        { error: 'Unauthorized' },
+        { error: 'Unauthorized access. Admin privileges required.' },
         { status: 401 }
       );
     }
 
     // Get all candidates with their votes
     const candidates = await prisma.candidate.findMany({
+      where: positionId ? { positionId } : undefined,
       include: {
         _count: {
           select: {
@@ -73,7 +104,14 @@ export async function GET(request) {
       },
       orderBy: {
         voteCount: 'desc'
-      }
+      },
+      skip: (page - 1) * limit,
+      take: limit
+    });
+
+    // Get total count for pagination
+    const totalCandidates = await prisma.candidate.count({
+      where: positionId ? { positionId } : undefined
     });
 
     // Get total number of voters
@@ -86,6 +124,13 @@ export async function GET(request) {
 
     // Get election status
     const status = await prisma.electionStatus.findFirst();
+
+    if (!status) {
+      return NextResponse.json(
+        { error: 'Election status not found' },
+        { status: 404 }
+      );
+    }
 
     // Group candidates by position
     const resultsByPosition = candidates.reduce((acc, candidate) => {
@@ -143,7 +188,7 @@ export async function GET(request) {
       _count: true
     });
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       results: resultsByPosition,
       winners,
       statistics: {
@@ -153,12 +198,39 @@ export async function GET(request) {
         departmentStats,
         genderStats
       },
-      electionStatus: status
+      electionStatus: status,
+      pagination: {
+        page,
+        limit,
+        totalCandidates,
+        totalPages: Math.ceil(totalCandidates / limit)
+      }
     });
+
+    // Add cache headers
+    response.headers.set('Cache-Control', `public, s-maxage=${CACHE_DURATION}, stale-while-revalidate`);
+    
+    return response;
   } catch (error) {
     console.error('Error fetching election results:', error);
+    
+    // Provide more detailed error messages based on the error type
+    if (error.code === 'P2002') {
+      return NextResponse.json(
+        { error: 'Database constraint violation' },
+        { status: 409 }
+      );
+    }
+    
+    if (error.code === 'P2025') {
+      return NextResponse.json(
+        { error: 'Record not found' },
+        { status: 404 }
+      );
+    }
+
     return NextResponse.json(
-      { error: 'Failed to fetch election results' },
+      { error: 'Failed to fetch election results. Please try again later.' },
       { status: 500 }
     );
   }
