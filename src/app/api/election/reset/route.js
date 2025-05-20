@@ -1,6 +1,8 @@
-import { getServerSession } from 'next-auth';
-import { prisma } from '@/lib/prisma';
-import { logAudit } from '@/lib/audit';
+import { NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth/next';
+import { authConfig } from '@/config/auth';
+import prisma from '@/lib/prisma';
+import { logAction } from '@/lib/audit';
 
 export async function POST(req) {
   try {
@@ -24,7 +26,7 @@ export async function POST(req) {
       }
 
       // Log the action
-      await logAudit({
+      await logAction({
         action: 'ELECTION_RESET',
         userId: session.user.id,
         details: {

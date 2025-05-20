@@ -1,7 +1,9 @@
-import { getServerSession } from 'next-auth';
-import { sendSMS } from '@/lib/sms';
-import { prisma } from '@/lib/prisma';
-import { logAudit } from '@/lib/audit';
+import { NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth/next';
+import { authConfig } from '@/config/auth';
+import prisma from '@/lib/prisma';
+import { logAction } from '@/lib/audit';
+import { sendVerificationCode, validatePhoneNumber, isRateLimited } from '@/lib/sms';
 
 export async function POST(req) {
   try {
@@ -61,9 +63,9 @@ export async function POST(req) {
         });
     }
 
-    await sendSMS(phoneNumber, message);
+    await sendVerificationCode(phoneNumber, message);
 
-    await logAudit({
+    await logAction({
       action: 'SEND_SMS',
       userId: user.id,
       details: {

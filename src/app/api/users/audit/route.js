@@ -1,5 +1,8 @@
-import { getServerSession } from 'next-auth';
-import { prisma } from '@/lib/prisma';
+import { NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth/next';
+import { authConfig } from '@/config/auth';
+import prisma from '@/lib/prisma';
+import { getAuditLogs } from '@/lib/audit';
 
 export async function GET(req) {
   try {

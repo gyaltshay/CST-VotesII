@@ -1,10 +1,8 @@
 import { NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
 import { getServerSession } from 'next-auth/next';
-import { createAuditLog } from '@/lib/audit';
+import { authConfig } from '@/config/auth';
 import prisma from '@/lib/prisma';
-
-const prismaClient = new PrismaClient();
+import { logAction } from '@/lib/audit';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -55,6 +53,7 @@ const DEFAULT_POSITIONS = {
 };
 
 export async function GET() {
+  const startTime = Date.now();
   try {
     const candidates = await prisma.candidate.findMany({
       orderBy: {
@@ -74,7 +73,11 @@ export async function GET() {
 
     return NextResponse.json({ candidates: candidatesWithPositions });
   } catch (error) {
-    console.error('Error fetching candidates:', error);
+    console.error('Error fetching candidates:', {
+      error: error.message,
+      stack: error.stack,
+      duration: Date.now() - startTime
+    });
     return NextResponse.json(
       { error: 'Failed to fetch candidates' },
       { status: 500 }
@@ -83,9 +86,10 @@ export async function GET() {
 }
 
 export async function POST(request) {
+  const startTime = Date.now();
   try {
-    const session = await getServerSession();
-    if (!session?.user?.isAdmin) {
+    const session = await getServerSession(authConfig);
+    if (!session?.user?.role === 'ADMIN') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -98,7 +102,7 @@ export async function POST(request) {
     }
 
     // Check if candidate already exists
-    const existingCandidate = await prismaClient.candidate.findUnique({
+    const existingCandidate = await prisma.candidate.findUnique({
       where: { studentId },
     });
 
@@ -107,7 +111,7 @@ export async function POST(request) {
     }
 
     // Create new candidate
-    const candidate = await prismaClient.candidate.create({
+    const candidate = await prisma.candidate.create({
       data: {
         name,
         studentId,
@@ -120,29 +124,47 @@ export async function POST(request) {
     });
 
     // Create audit log
-    await createAuditLog({
+    await logAction({
       action: 'CREATE_CANDIDATE',
-      details: `Created candidate: ${name} (${studentId})`,
+      entityType: 'CANDIDATE',
+      entityId: candidate.id,
       userId: session.user.id,
+      metadata: {
+        name,
+        studentId,
+        department,
+        gender,
+        positionId,
+        duration: Date.now() - startTime
+      }
     });
 
     return NextResponse.json(candidate);
   } catch (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error('Error creating candidate:', {
+      error: error.message,
+      stack: error.stack,
+      duration: Date.now() - startTime
+    });
+    return NextResponse.json(
+      { error: 'Failed to create candidate' },
+      { status: 500 }
+    );
   }
 }
 
 export async function PUT(request) {
+  const startTime = Date.now();
   try {
-    const session = await getServerSession();
-    if (!session?.user?.isAdmin) {
+    const session = await getServerSession(authConfig);
+    if (!session?.user?.role === 'ADMIN') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const data = await request.json();
     const { id, name, department, gender, manifesto, imageUrl, positionId } = data;
 
-    const candidate = await prismaClient.candidate.update({
+    const candidate = await prisma.candidate.update({
       where: { id },
       data: {
         name,
@@ -154,40 +176,71 @@ export async function PUT(request) {
       },
     });
 
-    await createAuditLog({
+    await logAction({
       action: 'UPDATE_CANDIDATE',
-      details: `Updated candidate: ${name}`,
+      entityType: 'CANDIDATE',
+      entityId: candidate.id,
       userId: session.user.id,
+      metadata: {
+        name,
+        department,
+        gender,
+        positionId,
+        duration: Date.now() - startTime
+      }
     });
 
     return NextResponse.json(candidate);
   } catch (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error('Error updating candidate:', {
+      error: error.message,
+      stack: error.stack,
+      duration: Date.now() - startTime
+    });
+    return NextResponse.json(
+      { error: 'Failed to update candidate' },
+      { status: 500 }
+    );
   }
 }
 
 export async function DELETE(request) {
+  const startTime = Date.now();
   try {
-    const session = await getServerSession();
-    if (!session?.user?.isAdmin) {
+    const session = await getServerSession(authConfig);
+    if (!session?.user?.role === 'ADMIN') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
 
-    const candidate = await prismaClient.candidate.delete({
+    const candidate = await prisma.candidate.delete({
       where: { id },
     });
 
-    await createAuditLog({
+    await logAction({
       action: 'DELETE_CANDIDATE',
-      details: `Deleted candidate: ${candidate.name}`,
+      entityType: 'CANDIDATE',
+      entityId: candidate.id,
       userId: session.user.id,
+      metadata: {
+        name: candidate.name,
+        studentId: candidate.studentId,
+        duration: Date.now() - startTime
+      }
     });
 
     return NextResponse.json(candidate);
   } catch (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error('Error deleting candidate:', {
+      error: error.message,
+      stack: error.stack,
+      duration: Date.now() - startTime
+    });
+    return NextResponse.json(
+      { error: 'Failed to delete candidate' },
+      { status: 500 }
+    );
   }
 }
