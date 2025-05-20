@@ -3,6 +3,111 @@ import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import prisma from '@/lib/prisma';
 
+// GET /api/admin/candidates/[id]
+export async function GET(request, { params }) {
+  try {
+    const session = await getServerSession(authOptions);
+    
+    if (!session || session.user.role !== 'ADMIN') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { id } = params;
+
+    if (!id) {
+      return NextResponse.json(
+        { error: 'Candidate ID is required' },
+        { status: 400 }
+      );
+    }
+
+    const candidate = await prisma.candidate.findUnique({
+      where: { id },
+      include: {
+        position: true,
+        votes: true
+      }
+    });
+
+    if (!candidate) {
+      return NextResponse.json(
+        { error: 'Candidate not found' },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json(candidate);
+  } catch (error) {
+    console.error('Failed to fetch candidate:', error);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
+  }
+}
+
+// PUT /api/admin/candidates/[id]
+export async function PUT(request, { params }) {
+  try {
+    const session = await getServerSession(authOptions);
+    
+    if (!session || session.user.role !== 'ADMIN') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { id } = params;
+    const body = await request.json();
+
+    if (!id) {
+      return NextResponse.json(
+        { error: 'Candidate ID is required' },
+        { status: 400 }
+      );
+    }
+
+    // Check if candidate exists
+    const existingCandidate = await prisma.candidate.findUnique({
+      where: { id }
+    });
+
+    if (!existingCandidate) {
+      return NextResponse.json(
+        { error: 'Candidate not found' },
+        { status: 404 }
+      );
+    }
+
+    // Update candidate
+    const updatedCandidate = await prisma.candidate.update({
+      where: { id },
+      data: {
+        name: body.name,
+        description: body.description,
+        positionId: body.positionId,
+        imageUrl: body.imageUrl
+      }
+    });
+
+    // Log the action
+    await prisma.auditLog.create({
+      data: {
+        action: 'CANDIDATE_UPDATE',
+        entityType: 'CANDIDATE',
+        entityId: id,
+        userId: session.user.id
+      }
+    });
+
+    return NextResponse.json(updatedCandidate);
+  } catch (error) {
+    console.error('Failed to update candidate:', error);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
+  }
+}
+
 // DELETE /api/admin/candidates/[id]
 export async function DELETE(request, { params }) {
   try {
